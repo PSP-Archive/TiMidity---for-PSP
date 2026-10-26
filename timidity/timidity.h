@@ -110,7 +110,7 @@ typedef double FLOAT_T;
 /* Default sampling rate, default polyphony, and maximum polyphony.
    All but the last can be overridden from the command line. */
 #ifndef DEFAULT_RATE
-#define DEFAULT_RATE	22050
+#define DEFAULT_RATE	44100
 #endif /* DEFAULT_RATE */
 
 #define DEFAULT_VOICES	64
@@ -412,6 +412,8 @@ extern int volatile_touch(void* dmy);
 #endif
 #endif
 
+#include <pspiofilemgr.h>
+
 /* DEC MMS has 64 bit long words */
 /* Linux-Axp has also 64 bit long words */
 #if defined(DEC) || defined(__alpha__)
@@ -419,7 +421,7 @@ typedef unsigned int uint32;
 typedef int int32;
 #else
 typedef unsigned long uint32;
-typedef long int32;
+//typedef long int32;
 #endif
 #ifdef HPUX
 typedef unsigned short uint16;
@@ -428,7 +430,7 @@ typedef unsigned char uint8;
 typedef char int8;
 #else
 typedef unsigned short uint16;
-typedef signed short int16;
+//typedef signed short int16;
 typedef unsigned char uint8;
 typedef signed char int8;
 #endif

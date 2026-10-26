@@ -59,7 +59,62 @@ extern char *safe_strdup(char *);
 #endif
 
 #endif
+/* Patch start */
+#include <pspiofilemgr.h>
+#include <pspiofilemgr_dirent.h>
+#include <string.h>
+struct dirent {
+        uint32 d_fileno;            /* file number of entry */
+        uint16 d_reclen;            /* length of this record */
+        uint8  d_type;              /* file type, see below */
+        uint8  d_namlen;            /* length of string in d_name */
+        char    d_name[255 + 1];        /* name must be no longer than this */
+};
 
+struct dirent Mydirent;
+
+DIR *opendir(const char *dir){
+       DIR *dirp;
+       SceUID uid;
+
+       uid = sceIoDopen(dir);
+      if(uid<0) return NULL;
+
+       dirp = (DIR *)malloc(sizeof(DIR));
+       if(dirp==NULL){
+               sceIoDclose(uid);
+               return NULL;
+       }
+       dirp->uid = uid;
+       return dirp;
+}
+
+struct dirent *readdir(DIR *dirp){
+	static SceIoDirent d;
+	int ret;
+
+	memset(&d,0,sizeof(d));
+	memset(&Mydirent,0,sizeof(Mydirent));
+	ret = sceIoDread(dirp->uid,&d);
+	if(ret==0) return NULL;
+	if(ret<0) return -1;
+	strcpy(Mydirent.d_name,d.d_name);
+	Mydirent.d_namlen = strlen(d.d_name);
+	return &Mydirent;
+}
+
+int closedir(DIR *dirp){
+       SceUID uid;
+
+       uid = dirp->uid;
+       free((void*)dirp);
+       if(sceIoDclose(uid)<0){
+               //errno = 0;  //Set global variable errno.
+               return -1;
+       }
+       return 0;
+}
+/* Patch end */
 #ifdef URL_DIR_CACHE_ENABLE
 #include <sys/stat.h>
 #ifdef HAVE_FCNTL_H

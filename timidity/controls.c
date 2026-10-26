@@ -39,6 +39,12 @@ extern ControlMode dumb_control_mode;
 #define DEFAULT_CONTROL_MODE &dumb_control_mode
 #endif
 
+#ifdef IA_PSP
+  extern ControlMode psp_control_mode;
+# ifndef DEFAULT_CONTROL_MODE
+#  define DEFAULT_CONTROL_MODE &psp_control_mode
+# endif
+#endif
 
 #ifdef IA_PLUGIN
   extern ControlMode plugin_control_mode;
@@ -146,6 +152,9 @@ extern ControlMode dumb_control_mode;
 #endif
 
 ControlMode *ctl_list[]={
+#ifdef IA_PSP
+  &psp_control_mode,
+#endif
 #ifdef IA_NCURSES
   &ncurses_control_mode,
 #endif

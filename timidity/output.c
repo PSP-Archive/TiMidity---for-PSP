@@ -51,6 +51,10 @@ extern PlayMode sun_play_mode;
 extern PlayMode oss_play_mode;
 #define DEV_PLAY_MODE &oss_play_mode
 
+#elif defined(AU_PSP)
+extern PlayMode psp_play_mode;
+#define DEV_PLAY_MODE &psp_play_mode
+
 #elif defined(AU_HPUX_AUDIO)
 extern PlayMode hpux_play_mode;
 #define DEV_PLAY_MODE &hpux_play_mode

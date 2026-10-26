@@ -760,12 +760,10 @@ int usleep(unsigned int /*usec*/)
     return 0;
 }
 #else
+#include <pspthreadman.h>
 int usleep(unsigned int usec)
 {
-    struct timeval tv;
-    tv.tv_sec  = usec / 1000000;
-    tv.tv_usec = usec % 1000000;
-    select(0, NULL, NULL, NULL, &tv);
+    sceKernelDelayThread(usec);
     return 0;
 }
 #endif /* __W32__ */

@@ -17,6 +17,12 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
+#include <pspkernel.h>
+#include <pspdebug.h>
+#include <pspaudiolib.h>
+#include <pspaudio.h>
+#include <pspdisplay.h>
+#include <pspctrl.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -2853,7 +2859,7 @@ MAIN_INTERFACE void timidity_start_initialize(void)
     if(*(char *)&i == 1)
 #endif
     {
-	fprintf(stderr, "Byte order is miss configured.\n");
+	pspDebugScreenPrintf( "Byte order is miss configured.\n");
 	exit(1);
     }
 
@@ -3113,7 +3119,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 
     if(ctl->open(need_stdin, need_stdout))
     {
-	fprintf(stderr, "Couldn't open %s (`%c')" NLS,
+	pspDebugScreenPrintf( "Couldn't open %s (`%c')" NLS,
 		ctl->id_name, ctl->id_character);
 	play_mode->close_output();
 	return 3;
@@ -3121,7 +3127,7 @@ MAIN_INTERFACE int timidity_play_main(int nfiles, char **files)
 
     if(wrdt->open(wrdt_open_opts))
     {
-	fprintf(stderr, "Couldn't open WRD Tracer: %s (`%c')" NLS,
+	pspDebugScreenPrintf( "Couldn't open WRD Tracer: %s (`%c')" NLS,
 		wrdt->name, wrdt->id);
 	play_mode->close_output();
 	ctl->close();
@@ -3264,6 +3270,45 @@ extern int SecondMode;
 static int CoInitializeOK = 0;
 #endif /* IA_W32GUI */
 
+/* PSP patch start */
+/* Define the module info section */
+PSP_MODULE_INFO("TiMidity", 0, 1, 1);
+/* Define the main thread's attribute value (optional) */
+PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
+
+
+/* Exit callback */
+extern int psp_exit;
+int exitCallback(int arg1, int arg2, void *common) {
+	psp_exit = 1;
+	sceKernelExitGame();
+	return 0;
+}
+
+/* Callback thread */
+int callbackThread(SceSize args, void *argp) {
+	int cbid;
+
+	cbid = sceKernelCreateCallback("Exit Callback", (void*) exitCallback, NULL);
+	sceKernelRegisterExitCallback(cbid);
+	sceKernelSleepThreadCB();
+
+	return 0;
+}
+
+/* Sets up the callback thread and returns its thread id */
+int setupCallbacks(void) {
+	int thid = 0;
+
+	thid = sceKernelCreateThread("update_thread", callbackThread, 0x11, 0xFA0, 0, 0);
+	if (thid >= 0) {
+		sceKernelStartThread(thid, 0, 0);
+	}
+	return thid;
+}
+
+/* PSP patch end */
+
 #ifndef __MACOS__
 #ifdef __W32__ /* Windows */
 #if defined(__CYGWIN32__) || defined(__MINGW32__) || !defined(IA_W32GUI)
@@ -3274,13 +3319,41 @@ int __cdecl main(int argc, char **argv)
 int win_main(int argc, char **argv)
 #endif
 #else /* UNIX */
-int main(int argc, char **argv)
+int main(void)
 #endif
 {
     int c, err;
     int nfiles;
     char **files;
     int main_ret;
+
+/* PSP patch start */
+
+	setupCallbacks();
+	pspDebugScreenInit();
+
+	int argc = 0;
+	char buff[1024] = { "timidity" };
+	char *argv[1024];
+	int i;
+	i = 0;
+	argv[argc++] = &buff[0];
+	
+
+	FILE *fd;
+	fd = fopen("option.cfg","r");
+	if(fd!=NULL){
+		i = 9;
+		while(1){
+			if(fscanf(fd,"%s",&buff[i]) != EOF ){
+				argv[argc] = &buff[i];
+				i += strlen(&buff[i])+1;
+				argc++;
+			}else break;
+		}
+	}
+/* PSP patch end */
+
 
 #if defined(DANGEROUS_RENICE) && !defined(__W32__) && !defined(main)
     /*
@@ -3298,7 +3371,7 @@ int main(int argc, char **argv)
     if(setpriority(PRIO_PROCESS, 0, DANGEROUS_RENICE) < 0)
     {
 	perror("setpriority");
-	fprintf(stderr, "Couldn't set priority to %d.", DANGEROUS_RENICE);
+	pspDebugScreenPrintf( "Couldn't set priority to %d.", DANGEROUS_RENICE);
     }
     setreuid(uid, uid);
 #endif

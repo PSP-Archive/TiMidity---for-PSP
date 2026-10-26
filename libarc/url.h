@@ -36,12 +36,12 @@
  * is beginning with '~'
  */
 #if !defined(__MACOS__) && !defined(__W32__)
-#define TILD_SCHEME_ENABLE
+//#define TILD_SCHEME_ENABLE
 #endif
 
 /* Define if you want to use soft directory cache */
 #ifndef URL_DIR_CACHE_DISABLE
-#define URL_DIR_CACHE_ENABLE
+//#define URL_DIR_CACHE_ENABLE
 #endif /* URL_DIR_CACHE_DISABLE */
 
 /* Define if you want to use XOVER command in NNTP */
