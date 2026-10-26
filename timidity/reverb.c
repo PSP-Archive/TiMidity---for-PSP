@@ -123,7 +123,11 @@ void set_ch_reverb(register int32 *sbuffer, int32 n, int level)
 {
     register int32  i;
 
+#ifndef NO_FPU
     FLOAT_T send_level = (FLOAT_T)level * (REV_INP_LEV/127.0);
+#else
+    int32 send_level = level / (127.0 / REV_INP_LEV);
+#endif
 
     for(i = 0; i < n; i++)
     {
@@ -132,6 +136,22 @@ void set_ch_reverb(register int32 *sbuffer, int32 n, int level)
     }
 }
 
+#ifdef NO_FPU
+
+#define REV_LOG_SCALE      3
+#define REV_SCALE          (1 << REV_LOG_SCALE)
+#define INT_REV_LPF_LEV    ((int32 )(REV_LPF_LEV   * REV_SCALE))
+#define INT_REV_LPF_INP    ((int32 )(REV_LPF_INP   * REV_SCALE))
+#define INT_REV_WIDTH      ((int32 )(REV_WIDTH     * REV_SCALE))
+#define INT_REV_FBK_LEV    ((int32 )(REV_FBK_LEV   * REV_SCALE))
+#define INT_REV_CMIX_LEV   ((int32 )(REV_CMIX_LEV  * REV_SCALE))
+#define INT_REV_EPF_LEV    ((int32 )(REV_EPF_LEV   * REV_SCALE))
+#define INT_REV_EPF_INP    ((int32 )(REV_EPF_INP   * REV_SCALE))
+#define INT_REV_INP_LEV    ((int32 )(REV_INP_LEV   * REV_SCALE))
+#define INT_REV_HPF_LEV    ((int32 )(REV_HPF_LEV   * REV_SCALE))
+#define INT_REV_HPF_INP    ((int32 )(REV_HPF_INP   * REV_SCALE))
+
+#endif
 
 void do_ch_reverb(int32 *comp, int32 n)
 {
@@ -139,6 +159,51 @@ void do_ch_reverb(int32 *comp, int32 n)
 
     for(i = 0; i < n; i++)
     {
+#ifdef NO_FPU
+        /* L */
+        fixp = effect_buffer[i];
+        effect_buffer[i] = 0;
+
+        LPFL = (LPFL*INT_REV_LPF_LEV + (buf2_L[spt2]+tb)*INT_REV_LPF_INP + ta*INT_REV_WIDTH) >> REV_LOG_SCALE;
+        ta = buf3_L[spt3];
+        s  = buf3_L[spt3] = buf0_L[spt0];
+        buf0_L[spt0] = -LPFL;
+
+        t = ((HPFL + fixp) * INT_REV_HPF_LEV) >> REV_LOG_SCALE;
+        HPFL = t - fixp;
+
+        buf2_L[spt2] = (((s * REV_SCALE - fixp * INT_REV_FBK_LEV) >> REV_LOG_SCALE) * INT_REV_CMIX_LEV) >> REV_LOG_SCALE;
+        tb = buf1_L[spt1];
+        buf1_L[spt1] = t;
+
+        EPFL = (EPFL * INT_REV_EPF_LEV + ta * INT_REV_EPF_INP) >> REV_LOG_SCALE;
+        comp[i] = ta + EPFL + ((direct_buffer[i] * INT_REV_INP_LEV) >> REV_LOG_SCALE);
+        direct_buffer[i] = 0;
+
+        /* R */
+        fixp = effect_buffer[++i];
+        effect_buffer[i] = 0;
+
+        LPFR = (LPFR*INT_REV_LPF_LEV + (buf2_R[spt2]+tb)*INT_REV_LPF_INP + ta*INT_REV_WIDTH) >> REV_LOG_SCALE;
+        ta = buf3_R[spt3];
+        s  = buf3_R[spt3] = buf0_R[spt0];
+        buf0_R[spt0] = LPFR;
+
+        t = ((HPFR + fixp) * INT_REV_HPF_LEV) >> REV_LOG_SCALE;
+        HPFR = t - fixp;
+
+        buf2_R[spt2] = ((s - (fixp * INT_REV_FBK_LEV) >> REV_LOG_SCALE) * INT_REV_CMIX_LEV) >> REV_LOG_SCALE;
+        tb = buf1_R[spt1];
+        buf1_R[spt1] = t;
+
+        EPFR = (EPFR * INT_REV_EPF_LEV + ta * INT_REV_EPF_INP) >> REV_LOG_SCALE;
+        comp[i] = ta + EPFR + ((direct_buffer[i] * INT_REV_INP_LEV) >> REV_LOG_SCALE);
+        direct_buffer[i] = 0;
+
+        rev_ptinc();
+
+
+#else /* Original */
         /* L */
         fixp = effect_buffer[i];
         effect_buffer[i] = 0;
@@ -180,6 +245,7 @@ void do_ch_reverb(int32 *comp, int32 n)
         direct_buffer[i] = 0;
 
         rev_ptinc();
+#endif /* NO_FPU */
     }
 }
 

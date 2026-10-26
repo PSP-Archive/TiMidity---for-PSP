@@ -57,7 +57,11 @@ void compute_mix_smoothing(Voice *vp)
     int32 max_win, delta;
 
     /* reduce popping -- ramp the amp over a <= 0.5 msec window */
+#ifndef NO_FPU
     max_win = (int32)(play_mode->rate * 0.0005);
+#else
+    max_win = (int32)(play_mode->rate >> 11);
+#endif
     delta = FROM_FINAL_VOLUME(vp->left_mix) - vp->old_left_mix;
 
     if (labs(delta) > max_win)
@@ -197,6 +201,7 @@ next_stage:
 	return 0;
 }
 
+#ifndef NO_FPU
 int apply_envelope_to_amp(int v)
 {
   FLOAT_T lamp=voice[v].left_amp, ramp;
@@ -265,6 +270,80 @@ int apply_envelope_to_amp(int v)
     }
   return 0;
 }
+#else /* NO_FPU */
+int apply_envelope_to_amp(int v)
+{
+  int32 lamp=voice[v].left_amp, ramp;
+  int32 la,ra;
+  if (voice[v].panned == PANNED_MYSTERY)
+    {
+      ramp=voice[v].right_amp;
+      if (voice[v].tremolo_phase_increment)
+	{
+	    // lamp *= voice[v].tremolo_volume;
+	    // ramp *= voice[v].tremolo_volume;
+	    if(voice[v].tremolo_volume) {
+		lamp = lamp - (lamp << 9) / voice[v].tremolo_volume;
+		ramp = ramp - (ramp << 9) / voice[v].tremolo_volume;
+	    } else {
+		lamp = ramp = 0;
+	    }
+	}
+      if (voice[v].sample->modes & MODES_ENVELOPE)
+	{
+	  lamp *= vol_table[voice[v].envelope_volume>>23];
+	  ramp *= vol_table[voice[v].envelope_volume>>23];
+	}
+
+      la = lamp >> (21 - AMP_BITS);   /* 21 bit-shifted fixed real. */
+
+      if (la>MAX_AMP_VALUE)
+	la=MAX_AMP_VALUE;
+
+      ra = ramp >> (21 - AMP_BITS);
+      if (ra>MAX_AMP_VALUE)
+	ra=MAX_AMP_VALUE;
+
+      if((voice[v].status & (VOICE_OFF | VOICE_SUSTAINED))
+	 && (la | ra) <= MIN_AMP_VALUE)
+      {
+	  free_voice(v);
+	  ctl_note_event(v);
+	  return 1;
+      }
+      voice[v].left_mix=FINAL_VOLUME(la);
+      voice[v].right_mix=FINAL_VOLUME(ra);
+    }
+  else
+    {
+      if (voice[v].tremolo_phase_increment) {
+	  // lamp *= voice[v].tremolo_volume;
+	  if(voice[v].tremolo_volume) {
+  	      lamp = lamp - (lamp << 9) / voice[v].tremolo_volume;
+          } else {
+	      lamp = 0;
+	  }
+      }
+      if (voice[v].sample->modes & MODES_ENVELOPE)
+	lamp *= vol_table[voice[v].envelope_volume>>23];
+
+      la = lamp >> (21 - AMP_BITS);
+
+      if (la>MAX_AMP_VALUE)
+	la=MAX_AMP_VALUE;
+      if((voice[v].status & (VOICE_OFF | VOICE_SUSTAINED)) &&
+	 la <= MIN_AMP_VALUE)
+      {
+	  free_voice(v);
+	  ctl_note_event(v);
+	  return 1;
+      }
+      voice[v].left_mix=FINAL_VOLUME(la);
+
+    }
+  return 0;
+}
+#endif  /* NO_FPU */
 
 static inline int update_envelope(int v)
 {
@@ -304,12 +383,18 @@ static void update_tremolo(int v)
 
   /* if (voice[v].tremolo_phase >= (SINE_CYCLE_LENGTH<<RATE_SHIFT))
      voice[v].tremolo_phase -= SINE_CYCLE_LENGTH<<RATE_SHIFT;  */
-
+#ifndef NO_FPU
   voice[v].tremolo_volume =
     1.0 - TIM_FSCALENEG((lookup_sine(voice[v].tremolo_phase >> RATE_SHIFT)
 			 + 1.0) * depth * TREMOLO_AMPLITUDE_TUNING,
 			17);
+  /* fprintf(stderr, "tremolo vol: %4.5f\n", voice[v].tremolo_volume); */
 
+#else
+  voice[v].tremolo_volume = ((512 << 17) / (depth * TREMOLO_AMPLITUDE_TUNING))
+      / (lookup_sine(voice[v].tremolo_phase >> RATE_SHIFT) + 1.0);
+
+#endif  /* NO_FPU */
   /* I'm not sure about the +1.0 there -- it makes tremoloed voices'
      volumes on average the lower the higher the tremolo amplitude. */
 }

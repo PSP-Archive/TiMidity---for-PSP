@@ -92,6 +92,9 @@
 typedef double FLOAT_T;
 /* typedef float FLOAT_T; */
 
+/* partially integral arithmetics */
+#define NO_FPU  1
+
 
 /* A somewhat arbitrary frequency range. The low end of this will
    sound terrible as no lowpass filtering is performed on most
@@ -107,7 +110,7 @@ typedef double FLOAT_T;
 /* Default sampling rate, default polyphony, and maximum polyphony.
    All but the last can be overridden from the command line. */
 #ifndef DEFAULT_RATE
-#define DEFAULT_RATE	32000
+#define DEFAULT_RATE	22050
 #endif /* DEFAULT_RATE */
 
 #define DEFAULT_VOICES	64
@@ -131,13 +134,13 @@ typedef double FLOAT_T;
 
 */
 
-#define AUDIO_BUFFER_BITS 12	/* Maxmum audio buffer size (2^bits) */
+#define AUDIO_BUFFER_BITS 13	/* Maxmum audio buffer size (2^bits) */
 
 #ifndef DEFAULT_AUDIO_BUFFER_BITS
 #ifdef __W32__
 #define DEFAULT_AUDIO_BUFFER_BITS 12
 #else
-#define DEFAULT_AUDIO_BUFFER_BITS 11
+#define DEFAULT_AUDIO_BUFFER_BITS 12
 #endif
 #endif
 
@@ -231,7 +234,7 @@ typedef double FLOAT_T;
 /* Shawn McHorse's resampling optimizations. These may not in fact be
    faster on your particular machine and compiler. You'll have to run
    a benchmark to find out. */
-#define PRECALC_LOOPS
+/* #define PRECALC_LOOPS */
 
 
 /* If calling ldexp() is faster than a floating point multiplication

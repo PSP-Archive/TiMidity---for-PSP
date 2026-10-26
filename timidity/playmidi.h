@@ -268,8 +268,13 @@ typedef struct {
      left_mix_inc, right_mix_inc;
 #endif
 
+#ifndef NO_FPU
   FLOAT_T
+#else
+  int32
+#endif
     left_amp, right_amp, tremolo_volume;
+
   int32
     vibrato_sample_increment[VIBRATO_SAMPLE_INCREMENTS], vibrato_delay;
   int

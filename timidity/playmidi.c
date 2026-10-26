@@ -620,6 +620,7 @@ void recompute_freq(int v)
 #endif /* ABORT_AT_FATAL */
 }
 
+#ifndef NO_FPU
 static void recompute_amp(int v)
 {
     FLOAT_T tempamp;
@@ -669,6 +670,51 @@ static void recompute_amp(int v)
 	voice[v].left_amp = TIM_FSCALENEG(tempamp, 21);
     }
 }
+#else /* without FPU */
+static void recompute_amp(int v)
+{
+    int32 tempamp;
+
+    tempamp =  master_volume *
+	       voice[v].velocity *
+	       voice[v].sample->volume *
+	       channel[voice[v].channel].volume *
+	       channel[voice[v].channel].expression; /* 21 bits */
+
+    if(!(play_mode->encoding & PE_MONO))
+    {
+	if(voice[v].panning > 60 && voice[v].panning < 68)
+	{
+	    voice[v].panned = PANNED_CENTER;
+	    // voice[v].left_amp = TIM_FSCALENEG(tempamp, 21);
+	    voice[v].left_amp = tempamp;
+	}
+	else if (voice[v].panning < 5)
+	{
+	    voice[v].panned = PANNED_LEFT;
+	    voice[v].left_amp = tempamp << 1;
+	}
+	else if(voice[v].panning > 123)
+	{
+	    voice[v].panned = PANNED_RIGHT;
+	    /* left_amp will be used */
+	    voice[v].left_amp =  tempamp << 1;
+	}
+	else
+	{
+	    voice[v].panned = PANNED_MYSTERY;
+	    voice[v].left_amp = tempamp >> 6;
+	    voice[v].right_amp = voice[v].left_amp * voice[v].panning;
+	    voice[v].left_amp *= 127 - voice[v].panning;
+	}
+    }
+    else
+    {
+	voice[v].panned = PANNED_CENTER;
+	voice[v].left_amp = tempamp;
+    }
+}
+#endif /* NO_FPU */
 
 Instrument *play_midi_load_instrument(int dr, int bk, int prog)
 {
